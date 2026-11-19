@@ -7811,8 +7811,8 @@ a.anchor-link {
 .guide-nav a {font-weight:600;}
 </style>
 <p><a id="start"></a></p>
-<h1 id="Higgs-diffusion:-read-this-first">Higgs diffusion: read this first<a class="anchor-link" href="#Higgs-diffusion:-read-this-first">¶</a></h1><p><strong>Aaron Liu &amp; Matthew Galvez · CS 4352 · baseline results and implementation guide</strong></p>
-<p>This report is the front door to the project. You can read it without installing anything. All plots and results are embedded; the notebook and Python files are there when you want to change something.</p>
+<h1 id="Higgs-diffusion:-heuristic-models-(IC-and-LT)">Higgs diffusion: heuristic models (IC and LT)<a class="anchor-link" href="#Higgs-diffusion:-heuristic-models-(IC-and-LT)">¶</a></h1><p><strong>Aaron Liu &amp; Matthew Galvez · CS 4352 · baseline results and implementation guide</strong></p>
+<p>This report records the heuristic experiment: IC, LT, and simple controls. See the <a href="../../README.md">experiment index</a> for the separate GNN, prompted-agent, and synthesis experiments. You can read it without installing anything. All plots and results are embedded; the notebook and Python files are there when you want to change something.</p>
 <div class="guide-nav"><a href="#data">Dataset &amp; graph</a><a href="#mechanics">IC &amp; LT</a><a href="#results">Results</a><a href="#gnn">Build the GNN</a><a href="#agents">Build the agents</a><a href="#working">Run &amp; navigate</a></div>
 <p><strong>Question:</strong> how well can simple network models explain how quickly people begin retweeting about the Higgs announcement? First establish IC/LT baselines; next learn an adoption rule with a small GNN; finally explore synthetic prompted agents. <strong>Only the baseline stage is implemented.</strong></p>
 <p><strong>How to read:</strong> scan the graphs first. Read the dataset and model sections to understand their assumptions. Before coding, read the GNN/agent sections and the compact data contract at the end.</p>
@@ -7880,7 +7880,7 @@ a.anchor-link {
 <p><strong>Independent cascade (IC):</strong> only newly active users attempt to activate each outgoing neighbor, once, with probability p. If several independent attempts reach v, its chance of at least one success is <code>1 − (1−p)^k</code> for k attempts. Failed edges are not retried. Stop when no new user activates.</p>
 <p><strong>Linear threshold (LT):</strong> draw one threshold per node from Uniform(0,1) at the start of each simulation; keep it fixed throughout that run. Each incoming edge has weight <code>scale / incoming_degree</code>, so the node's total incoming weight is at most 1. At each step, activate a node if <code>scale × fraction_of_active_incoming_neighbors ≥ threshold</code>, with at least one active neighbor. All active neighbors contribute, not only the newest ones. Zero-degree users cannot activate unless seeded.</p>
 <p><strong>Mental model:</strong> IC is a one-shot transmission attempt; LT is accumulating pressure that crosses a fixed personal threshold. The figure below is an illustration, not a result fitted to Higgs data. In the LT example, v has three incoming neighbors, scale=1, and threshold=0.6: one active neighbor is insufficient; two suffice.</p>
-<p>Read <a href="diffusion/models.py">models.py</a> when you want the actual update loops. The implementation is about 50 lines; it returns active-user counts rather than storing full state histories.</p>
+<p>Read <a href="models.py">models.py</a> when you want the actual update loops. The implementation is about 50 lines; it returns active-user counts rather than storing full state histories.</p>
 </div>
 </div>
 </div>
@@ -8249,6 +8249,14 @@ a.anchor-link {
     "higgs-activity_time.txt.gz": "901b199716a23b0fc0371705e3ae9941b5c9493277aec65456abc4988674ad79",
     "higgs-retweet_network.edgelist.gz": "4097edebd539043cfc62d9b4ba67676f79523f6dbe896d345fcc127dec3e936e"
   },
+  "source_sha256": {
+    "diffusion/data.py": "daee4acbf477ca19f798238be3a7161e42312bc121f025b01d3c0ca8952b089d",
+    "diffusion/evaluation.py": "3dbe9111782d03566ba34cf00b06c8ade8a019082c50606f09c9fb387b3f5895",
+    "experiments/heuristic/models.py": "ebb1c0e1197533100b6157e5488dfe8c381c7771bc414de261553096406c9963",
+    "experiments/heuristic/experiment.py": "7b9e628137231eaf5fd91e60afeac07950083f2e7b2671bdd6c8c7e01939b43e",
+    "experiments/heuristic/analysis.ipynb": "5a4d105449db720cbf9323c48710360ac51c72cbba9a99c11e906c8110ee258e",
+    "uv.lock": "f64100c02edbe98ecfff782bd7cc26b0cfd33d51d8a38ac7a0a953163cc03f3b"
+  },
   "packages": {
     "numpy": "2.5.5",
     "pandas": "3.1.1",
@@ -8301,27 +8309,36 @@ Output: {"adopt": true or false}
 <p>Record the full prompt template, persona assignments, model/version, decoding settings, step duration, initial seeds, invalid-output/retry policy, token use, and cost. A random seed alone may not make a hosted model deterministic: save raw responses and replay them when debugging. Limit concurrency on the eight-core laptop; for remote models, also respect service limits and the experiment's cost budget.</p>
 <p>Use small pilot runs to estimate <strong>inactive agents × steps × repetitions</strong> before scaling. Repeat stochastic simulations, compare against IC/LT on the same small graph, and plot the same metrics. Treat differences as consequences of the declared prompt/persona assumptions—not discoveries about the real anonymized users. Any substantive new graph size, time resolution, or allowed information must be shared by the comparison models.</p>
 <p><a id="working"></a></p>
-<h2 id="11.-Where-to-make-changes,-and-how-to-run">11. Where to make changes, and how to run<a class="anchor-link" href="#11.-Where-to-make-changes,-and-how-to-run">¶</a></h2><p>The root has one document to read (<code>report.html</code>), one command to run (<code>run.py</code>), and the environment files. The three core modules stay deliberately small.</p>
-<div class="highlight"><pre><span></span>report.html                 This complete guide, with embedded figures
-notebooks/analysis.ipynb     Source of the report; settings and plotting cells
-diffusion/data.py          Compressed inputs, graph sample, first-RT labels
-diffusion/models.py        IC/LT update rules and repeated simulations
-diffusion/experiment.py    Parameter search, temporal split, metrics
-data/                      The three original .gz files; not tracked by Git
-docs/                      Original project proposal, PDF and Word
-README.md                  Short setup and navigation reference
-pyproject.toml + uv.lock    Python dependencies and exact resolved versions
+<h2 id="11.-Where-to-make-changes,-and-how-to-run">11. Where to make changes, and how to run<a class="anchor-link" href="#11.-Where-to-make-changes,-and-how-to-run">¶</a></h2><p>Each model family has its own folder under <code>experiments/</code>. This report, its notebook, and the IC/LT implementation live together in <code>experiments/heuristic/</code>. Shared data preparation and curve evaluation remain in <code>diffusion/</code>.</p>
+<div class="highlight"><pre><span></span>experiments/heuristic/
+  heuristic_models.html    This report, with embedded figures
+  analysis.ipynb           Settings, explanations, and plotting cells
+  models.py                IC/LT update rules and repeated simulations
+  experiment.py            IC/LT parameter search and experiment orchestration
+  run.py                   Rebuild this experiment's report
+  benchmark/               Preserved pre-GNN metrics, curves, settings, manifest
+  results/                 Optional exports from the latest run (ignored by Git)
+experiments/gnn/            Separate learned-model experiment (planned)
+experiments/prompted_agents/ Separate prompted-agent experiment (planned)
+experiments/synthesis/      Common comparison of all three families (planned)
+diffusion/data.py          Shared compressed inputs, graph sample, first-RT labels
+diffusion/evaluation.py    Shared curve metrics and reachability diagnostic
+data/                     Original .gz files (not tracked by Git)
+docs/                     Original project proposal
+README.md                 Experiment index and setup
+pyproject.toml + uv.lock   Shared virtual environment dependencies
 </pre></div>
 <p><strong>To rebuild:</strong> install Python 3.12+ and uv, then run from the project root:</p>
 <div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--locked
-uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>run.py
+uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>experiments/heuristic/run.py
 </pre></div>
 <p>A collaborator must download the three named <code>.gz</code> files from <a href="https://snap.stanford.edu/data/higgs-twitter.html">SNAP</a> into <code>data/</code> before rebuilding. They can read this report immediately without downloading anything. There is no server, GPU, or API key required for the baseline.</p>
-<p>The runner executes the notebook in memory and updates this report. The notebook on disk keeps empty outputs, avoiding duplicate figures. To edit it interactively, select <code>.venv/bin/python</code> as the kernel. It works from the root or <code>notebooks/</code> directory.</p>
+<p>The runner executes the notebook in memory and updates <code>experiments/heuristic/heuristic_models.html</code>. The notebook on disk keeps empty outputs, avoiding duplicate figures. To edit it interactively, select the root <code>.venv/bin/python</code> as the kernel. It locates the project root from any directory inside the repository. The original root command <code>uv run python run.py</code> remains a shortcut for this experiment.</p>
 <p><strong>To export figures and numerical results for further analysis:</strong></p>
-<div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>run.py<span class="w"> </span>--export
+<div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>experiments/heuristic/run.py<span class="w"> </span>--export
 </pre></div>
-<p>This creates optional <code>results/</code> PNGs, CSVs, simulation draws, and a manifest. Normal runs do not create those files. Existing exports are overwritten on the next export, and can become stale after a normal run; copy each run's exports/report before comparing experiments. Git ignores exports, raw datasets, <code>.venv/</code>, and <code>.cache/</code>. The cache can be deleted and will regenerate. The report and source notebook are intentionally kept in Git. The test suite was removed for a smaller handoff; rebuilding the report is the end-to-end check.</p>
+<p>This creates optional PNGs, CSVs, simulation draws, and a manifest under <code>experiments/heuristic/results/</code>. Those exports are overwritten by the next export and can become stale after a normal run. The separate <code>benchmark/</code> folder preserves the pre-GNN numerical results for future comparisons; the runner never writes there. Its manifest records settings, input hashes, source hashes, and package versions. Preserve a new run in a separately named snapshot before using it as another benchmark.</p>
+<p>Git ignores optional exports, raw datasets, <code>.venv/</code>, and <code>.cache/</code>. The shared graph cache can be deleted and will regenerate. The report, source notebook, and compact benchmark files are intentionally kept in Git. Rebuilding the report is the end-to-end check.</p>
 <h3 id="The-small-data-contract-you-will-reuse">The small data contract you will reuse<a class="anchor-link" href="#The-small-data-contract-you-will-reuse">¶</a></h3><ul>
 <li><strong><code>node_ids</code>: <code>(N,)</code> integer IDs.</strong> Position i maps to row/column i everywhere. Preserve this order when building tensors or joining labels; do not align arrays by raw Twitter ID.</li>
 <li><strong><code>graph</code>: sparse <code>(N, N)</code> binary influence adjacency.</strong> Rows are sources, columns are recipients. No self-loops. Do not densify the full network.</li>

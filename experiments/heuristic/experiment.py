@@ -2,21 +2,12 @@
 import numpy as np
 import pandas as pd
 
-from .data import cumulative_counts
+from diffusion.data import cumulative_counts
+from diffusion.evaluation import evaluate_curves, reachable_mask
 from .models import ensemble
 
 PARAMETERS = {"IC": [0, .001, .003, .01, .03, .1, .3, 1.0],
               "LT": [0, .05, .1, .2, .4, .6, .8, 1.0]}
-
-
-def reachable_mask(graph, seeds):
-    """Absolute ceiling for a closed, progressive model with no external arrivals."""
-    reached = seeds.copy()
-    while True:
-        expanded = reached | (graph.T @ reached.astype(float) > 0)
-        if np.array_equal(expanded, reached):
-            return reached
-        reached = expanded
 
 
 def run_experiment(graph, first_hours, seed_hour=24, fit_end=72, end_hour=168,
@@ -36,7 +27,6 @@ def run_experiment(graph, first_hours, seed_hour=24, fit_end=72, end_hour=168,
     if not seeds.any():
         raise ValueError("No early retweeters in this sample; increase n_nodes or seed_hour.")
     fit = (hours > seed_hour) & (hours <= fit_end)
-    test = hours > fit_end
     rows, predictions = [], {}
     for model, parameters in PARAMETERS.items():
         for step_hours in (1, 3, 6, 12):
@@ -54,16 +44,8 @@ def run_experiment(graph, first_hours, seed_hour=24, fit_end=72, end_hour=168,
     # Simple trend baseline: its rate uses only the fitting period.
     rate = (observed[hours == fit_end][0] - observed[0]) / (fit_end - seed_hour)
     predictions["Linear trend"] = np.minimum(len(seeds), observed[0] + rate * (hours - seed_hour))[None, :]
-    metrics = []
-    for model, curves in predictions.items():
-        mean = curves.mean(axis=0)
-        metrics.append(dict(model=model,
-            test_rmse=float(np.sqrt(np.mean((mean[test] - observed[test]) ** 2))),
-            test_mae=float(np.mean(np.abs(mean[test] - observed[test]))),
-            final_error=float(mean[-1] - observed[-1]),
-            # Spread speed measured as average new adopters/hour after fit_end.
-            test_speed=float((mean[-1] - mean[hours == fit_end][0]) / (end_hour - fit_end))))
+    metrics = evaluate_curves(predictions, observed, hours, fit_end)
     return dict(hours=hours, observed=observed, seeds=seeds, fit_end=fit_end,
                 seed_hour=seed_hour, predictions=predictions, tuning=tuning, best=best,
-                metrics=pd.DataFrame(metrics), reachable=reachable_mask(graph, seeds),
+                metrics=metrics, reachable=reachable_mask(graph, seeds),
                 observed_test_speed=float((observed[-1] - observed[hours == fit_end][0]) / (end_hour - fit_end)))
